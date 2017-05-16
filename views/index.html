@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>文件上传</title>
+    <link rel="stylesheet" href="bootstrap/dist/css/bootstrap.css">
+    <link rel="stylesheet" href="jquery/jquery.alerts.css">
+    <link type="text/css" rel="stylesheet" href="css/materialize.css" media="screen,projection"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+
+    <style>
+        .header {
+            width: 100%;
+            height: 60px;
+            background-color: #00B8EE;
+        }
+        textarea {
+            resize:none;
+        }
+    </style>
+</head>
+<body>
+<div id="wrapper">
+    <div class="header light-blue lighten-1">
+        <span style="float:right;font-size:20px;line-height:3.0;margin-right:20px;color:#e1f5fe;">文件上传服务器</span>
+    </div>
+
+    <div style="padding: 15px">
+        <div>
+            <h5>文件选择上传</h5>
+            <div id="container">
+                <button id="pickfiles" class="btn btn-info">选择文件</button>
+                <button id="uploadfiles" class="btn btn-success">上传文件</button>
+            </div>
+
+            <div id="filelist">当前浏览器不支持Flash，Silverlight或HTML5上传！</div>
+            <pre id="console" style="display: none;"></pre>
+        </div>
+
+        <div>
+            <h5>图片复制上传（粘贴后自动上传）</h5>
+            <div id="solve-md" class="md-area" style="float: left;width:20%;">
+                <textarea id="manufaction-solving" style="height: 200px;width:100%;border: 1px solid red"
+                          class="form-control" name="nodeCentent"></textarea>
+            </div>
+            <div id="backinfo" class=""
+                 style="margin-left:1%;float: left;width:79%;height: 200px;border: 1px solid yellow;border-radius: 4px"></div>
+        </div>
+    </div>
+
+</div>
+<script type="text/javascript" src="jquery/jquery.min.js"></script>
+<script type="text/javascript" src="plupload/js/plupload.full.min.js"></script>
+<script type="text/javascript" src="plupload/js/i18n/zh_CN.js"></script>
+<script type="text/javascript" src="jquery/jquery.alerts.js"></script>
+<script type="text/javascript" src="common.js"></script>
+<script type="text/javascript" src="js/materialize.js"></script>
+
+<script type="text/javascript">
+    // ==================================
+    // 选择图片上传部分，使用plupload.js插件
+    $(document).ready(function () {
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        var uploader = new plupload.Uploader({
+            runtimes: 'html5',
+            browse_button: 'pickfiles', // you can pass in id...
+            container: $('container'), // ... or DOM Element itself
+            max_file_size: '10mb',
+            unique_names: false,
+            url: "/api/fileupload/img",
+            filters: [
+                {title: "Image files", extensions: "jpg,gif,png"}
+            ],
+
+            init: {
+                PostInit: function () {
+                    $('filelist').innerHTML = '';
+
+                    $('uploadfiles').onclick = function () {
+                        uploader.start();
+                        return false;
+                    };
+                },
+
+                FilesAdded: function (up, files) {
+                    plupload.each(files, function (file) {
+                        $('filelist').innerHTML += '<div id="' + file.id + '">' + file.name + '<span></span><span></span><span></span></div>';
+                    });
+                },
+
+                FileUploaded: function (up, file, res) {
+                    var data = JSON.parse(res.response)
+                    console.log(data)
+                    var url = data.result.url;
+                    $(file.id).getElementsByTagName('span')[0].innerHTML = '<img alt="" src="' + url + '" width="100" height="100" class="materialboxed">';
+                    $(file.id).getElementsByTagName('span')[1].innerHTML = '<a target="_blank" href="' + url + '">下载</a>';
+                    $(file.id).getElementsByTagName('span')[2].innerHTML = '绝对路径：'+ data.result.path;
+                },
+
+                Error: function (up, err) {
+                    $('console').css('display', '').innerHTML += "\nError #" + err.code + ": " + err.message;
+                }
+            }
+        });
+        uploader.init();
+    });
+
+    // ==================================
+    // 图片在文本框复制粘贴部分
+    var md_area = $('.md-area');
+    for (var i = 0; i < md_area.length; i++) {
+        addEvent(md_area[i]);
+    }
+    // 给编辑器添加事件监听
+    function addEvent(el) {
+        // 为 <textarea> 元素绑定粘贴事件事件 ,程序将粘贴事件绑定到 pasteTarget 上
+        el.addEventListener('paste', function (e) {
+
+            // 添加到事件对象中的访问系统剪贴板的接口
+            var cbd = e.clipboardData;
+            var ua = window.navigator.userAgent;
+
+            // 如果是 Safari 直接 return
+            if (!(e.clipboardData && e.clipboardData.items)) {
+                return;
+            }
+
+            // Mac平台下Chrome49版本以下 复制Finder中的文件的Bug Hack掉
+            if (cbd.items && cbd.items.length === 2 && cbd.items[0].kind === "string" && cbd.items[1].kind === "file" &&
+                    cbd.types && cbd.types.length === 2 && cbd.types[0] === "text/plain" && cbd.types[1] === "Files" &&
+                    ua.match(/Macintosh/i) && Number(ua.match(/Chrome\/(\d{2})/i)[1]) < 49) {
+                return;
+            }
+
+            var blob = null;
+            for (var i = 0; i < cbd.items.length; i++) {
+                var item = cbd.items[i];
+                // 判断是否为图片数据
+                if (item && item.kind === 'file' && item.type.match(/^image\//i)) {
+                    blob = item.getAsFile();
+                    if (blob.size === 0) {
+                        return;
+                    }
+                }
+            }
+
+            if (blob !== null && blob != undefined) {
+                var extension = blob.type.match(/\/([a-z0-9]+)/i)[1].toLowerCase(); //后缀名
+                var oname = blob.name;
+
+                // 利用FormData对象模拟一个完整的表单,然后送这个"表单".
+                var fd = new FormData();
+                fd.append('file', blob, "paste." + extension);
+                fd.append('name', oname);
+
+                var imgUrl = "api/fileupload/img";
+                sendImgByAjax(fd, 'POST', imgUrl, true);
+            }
+        }, false);
+    }
+
+    function sendImgByAjax(formData, method, action, flag) {
+        $.ajax({
+            type: method,
+            async: flag,
+            url: action,
+            data: formData,
+            processData: false, // 必须设置jQuery不要去处理发送的数据
+            contentType: false, // 必须设置jQuery不要去设置Content-Type请求头
+            success: function (data) {
+                if (data && data.code === 1) {
+                    console.log(data)
+                    var html = '<div>' + data.result.originalname +
+                            '<span><img alt="" src="' + data.result.url + '" width="100" height="100" class="materialboxed"></span>' +
+                            '<span><a target="_blank" href="' + data.result.url + '">下载</a></span><span>绝对路径：'+ data.result.path+
+                            '</span></div>'
+                    $("#backinfo").html(html)
+                }
+            }
+        });
+    }
+
+</script>
+</body>
+</html>

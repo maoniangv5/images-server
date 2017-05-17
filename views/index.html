@@ -38,7 +38,7 @@
         </div>
 
         <div>
-            <h5>图片复制上传（粘贴后自动上传）</h5>
+            <h5>图片复制粘贴或拖拽后上传（粘贴和拖拽后自动上传）</h5>
             <div id="solve-md" class="md-area" style="float: left;width:20%;">
                 <textarea id="manufaction-solving" style="height: 200px;width:100%;border: 1px solid red"
                           class="form-control" name="nodeCentent"></textarea>
@@ -50,6 +50,7 @@
 
 </div>
 <script type="text/javascript" src="jquery/jquery.min.js"></script>
+<script type="text/javascript" src="bootstrap/dist/js/bootstrap.js"></script>
 <script type="text/javascript" src="plupload/js/plupload.full.min.js"></script>
 <script type="text/javascript" src="plupload/js/i18n/zh_CN.js"></script>
 <script type="text/javascript" src="jquery/jquery.alerts.js"></script>
@@ -93,7 +94,6 @@
 
                 FileUploaded: function (up, file, res) {
                     var data = JSON.parse(res.response)
-                    console.log(data)
                     var url = data.result.url;
                     $(file.id).getElementsByTagName('span')[0].innerHTML = '<img alt="" src="' + url + '" width="100" height="100" class="materialboxed">';
                     $(file.id).getElementsByTagName('span')[1].innerHTML = '<a target="_blank" href="' + url + '">下载</a>';
@@ -159,6 +159,36 @@
                 var imgUrl = "api/fileupload/img";
                 sendImgByAjax(fd, 'POST', imgUrl, true);
             }
+        }, false);
+
+        //  当拖拽元素进入放置区域时由放置元素频繁触发的事件
+        el.addEventListener('dragover', function(e) {
+            // 阻止默认事件的触发
+            e.preventDefault();
+        }, false);
+
+        //当拖拽元素在放置区域放置时由放置元素触发的事件
+        el.addEventListener('drop', function(e) {
+            // 阻止默认事件的触发
+            e.preventDefault();
+
+            //获取文件对象
+            var fileList = e.dataTransfer.files;
+            //检测是否是拖拽文件到页面的操作
+            if (fileList.length == 0) {
+                return false;
+            }
+            //检测文件是不是图片
+            if (fileList[0].type.indexOf('image') === -1) {
+                alert('no img')
+                return false;
+            }
+            var fd = new FormData();
+            fd.append('file', fileList[0]);
+            var textareaElement = $(this).attr('id');
+
+            var imgUrl = "api/fileupload/img";
+            sendImgByAjax(fd, 'POST', imgUrl, true);
         }, false);
     }
 
